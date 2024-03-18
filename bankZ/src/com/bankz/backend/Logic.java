@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.bankz.enums.UserStatus;
 import com.bankz.helper.Supplement;
 import com.bankz.helper.Verification;
 import com.bankz.persistence.AdminPersistence;
@@ -34,6 +35,7 @@ public class Logic{
 	UserPersistence up=new UserPersistence();
 	AdminPersistence ap=new AdminPersistence();
 	Verification verify=new Verification();
+	
 	public User login(int userId,String password)throws InvalidInputException, NoSuchAlgorithmException, SQLException{
 		UtilityTasks.checkNull(password);
 		UtilityTasks.checkNull(userId);
@@ -58,11 +60,9 @@ public class Logic{
 		return encryptedPassword.toString();
 	}
 	
-	public Account getAccount(int userId) throws SQLException, InvalidInputException {
+	public List<Account> getAccounts(int userId,int pageNum) throws SQLException, InvalidInputException {
 		UtilityTasks.checkNull(userId);
-		Map<String, Object> conditionMap=new HashMap<String, Object>();
-		conditionMap.put("CUSTOMER_ID", userId);
-		return cp.getAccountInfo(conditionMap).get(userId);
+		return cp.getAccountInfo(userId,pageNum);
 	}
 	public Customer getCustomerPersonalInfo(int userId) throws SQLException, InvalidInputException{
 		UtilityTasks.checkNull(userId);
@@ -73,57 +73,68 @@ public class Logic{
 		UtilityTasks.checkNull(userId);
 		return ep.getPersonalInfo(userId);
 	}
-	public void deposit(int userId,int amount) throws SQLException,InvalidInputException{
+	public void deposit(int userId,long accountNum,int amount) throws SQLException,InvalidInputException{
 		UtilityTasks.checkNull(userId);
 		UtilityTasks.checkNull(amount);
-		Account account = getAccount(userId);
+		Account account = cp.getSingleAccountInfo(accountNum);
 		account.setBalance(account.getBalance()+amount);
 		long millisTime=Supplement.currentTimeInMillis();
-		String transactionTime=Supplement.millisToActualTime(millisTime);
+		
 		cp.selfTransaction(account);
-		cp.transactionEntry(account, amount, null, transactionTime, "Deposit");
+		cp.transactionEntry(account, amount, null, millisTime, "Deposit");
 	}
-	public void withDrawAmount(int userId,int amount) throws SQLException,InvalidInputException{
+	public void withDrawAmount(int userId,long accountNum,int amount) throws SQLException,InvalidInputException{
 		UtilityTasks.checkNull(userId);
 		UtilityTasks.checkNull(amount);
-		Account account=getAccount(userId);
+		Account account=cp.getSingleAccountInfo(accountNum);
 		int availableBalance=account.getBalance();
 		if (availableBalance>amount) {
 			account.setBalance(account.getBalance()-amount);
 		}long millisTime=Supplement.currentTimeInMillis();
-		String transactionTime=Supplement.millisToActualTime(millisTime);
+		
 		cp.selfTransaction(account);
-		cp.transactionEntry(account, amount, null, transactionTime, "Withdrawal");
+		cp.transactionEntry(account, amount, null, millisTime, "Withdrawal");
 	}
 	
-	public void moneyTransfer(int userId,int amount, long secondaryAccountNum,String description)throws SQLException,InvalidInputException{
+	public void moneyTransfer(int userId,int amount,long senderAccountNum, long receiverAccountNum,String description)throws SQLException,InvalidInputException, BankException{
 		UtilityTasks.checkNull(userId);
 		UtilityTasks.checkNull(amount);
-		UtilityTasks.checkNull(secondaryAccountNum);
+		UtilityTasks.checkNull(receiverAccountNum);
 		UtilityTasks.checkNull(description);
-		Account senderAccount=getAccount(userId);
-		Map<String, Object>conditionMap=new HashMap<String, Object>();
-		conditionMap.put("ACCOUNT_NUMBER", secondaryAccountNum);
-		Account receiverAccount=cp.getAccountInfo(conditionMap).get(secondaryAccountNum);
+		Account senderAccount=cp.getSingleAccountInfo(senderAccountNum);
+		
+		Account receiverAccount=cp.getSingleAccountInfo(receiverAccountNum);
 		int availableBalance=senderAccount.getBalance();
-		if (availableBalance>amount) {
+		if (availableBalance>amount && receiverAccount!=null) {
 			senderAccount.setBalance(availableBalance-amount);
 			receiverAccount.setBalance(receiverAccount.getBalance()+amount);
-		}else {
+			long millisTime=Supplement.currentTimeInMillis();
+			
+			cp.selfTransaction(senderAccount);
+			cp.selfTransaction(receiverAccount);
+			cp.transactionEntry(senderAccount, amount, receiverAccountNum, millisTime, description);
+			
+		}else if (availableBalance>amount) {
+			senderAccount.setBalance(availableBalance-amount);
+			long millisTime=Supplement.currentTimeInMillis();
+			
+			cp.selfTransaction(senderAccount);
+			cp.transactionEntry(senderAccount, amount, receiverAccountNum, millisTime, description);
+			
+		}
+		
+		else {
 			throw new BankException("Not Sufficient Balance");
 		}
-		long millisTime=Supplement.currentTimeInMillis();
-		String transactionTime=Supplement.millisToActualTime(millisTime);
-		cp.moneyTransfer(senderAccount, receiverAccount);
-		cp.transactionEntry(receiverAccount, amount, secondaryAccountNum, transactionTime, description);
+		
+		
 		
 	}
 	
-	public List<Transaction> getTransactionDetails(int userId) throws SQLException,InvalidInputException{
+	public List<Transaction> getTransactionDetails(int userId,int pageNum) throws SQLException,InvalidInputException{
 		UtilityTasks.checkNull(userId);
-		List<Object> objList= cp.getTransactionDetails(userId);
 		List<Transaction> transactionList = new ArrayList<>();
-		for(Object object : objList) {
+		for(Object object : cp.getTransactionDetails(userId,pageNum)) {
 			transactionList.add((Transaction)object);
 		}
 		return transactionList;
@@ -148,9 +159,9 @@ public class Logic{
 		
 	}
 	
-	public String checkStatus(int userId) throws SQLException,InvalidInputException{
+	public UserStatus checkStatus(int userId) throws SQLException,InvalidInputException{
 		UtilityTasks.checkNull(userId);
-		return up.checkStatus(userId);
+		return UserStatus.values()[up.checkStatus(userId)];
 	}
 	
 	
@@ -195,7 +206,7 @@ public class Logic{
 			customerDetailsList.add(customer.getContactNum());
 		}
 		ep.addUser(customerDetailsList);
-		customerDetailsList=new ArrayList<Object>();
+		customerDetailsList=new ArrayList<>();
 		customerDetailsList.add(customer.getId());
 		customerDetailsList.add(customer.getAadharNum());
 		customerDetailsList.add(customer.getPanNum());

@@ -10,6 +10,9 @@ import java.util.Scanner;
 import java.util.logging.Logger;
 
 import com.bankz.backend.Logic;
+import com.bankz.enums.AccountType;
+import com.bankz.enums.UserStatus;
+import com.bankz.enums.UserType;
 import com.bankz.helper.Supplement;
 import com.bankz.persistence.CustomerPersistence;
 import com.bankz.persistence.DatabaseTasks;
@@ -27,11 +30,8 @@ import com.bankz.utilities.InvalidInputException;
 
 public class BankZRun {
 	private static Scanner scan=new Scanner(System.in);
-	private static QueryBuilder queryBuilder=new QueryBuilder();
-	private static CustomerPersistence cp=new CustomerPersistence();
-	private static Logger logger = Logger.getAnonymousLogger();
 	private static Logic logic=new Logic();
-	private static DatabaseTasks dbTasks=new DatabaseTasks("jdbc:mysql://localhost:3306/bankZ","root","hari03@mySql");
+	
 	public static void main(String... args) {
 		
 		System.out.println("||||||||||||||||||||||||||||||||||||||||||||");
@@ -47,14 +47,14 @@ public class BankZRun {
 			
 			
 			User user=login();
-			switch (user.getType()) {
-			case "Customer":
+			switch (UserType.values()[user.getType()]) {
+			case CUSTOMER:
 				customer(user);
 				break;
-			case "Employee":
+			case EMPLOYEE:
 				employee(user);
 				break;
-			case "Admin":
+			case ADMIN:
 				admin(user);
 				break;
 			default:
@@ -66,6 +66,8 @@ public class BankZRun {
 		}catch (NoSuchAlgorithmException e) {
 			e.printStackTrace();
 		}catch(SQLException e) {
+			e.printStackTrace();
+		}catch (Exception e) {
 			e.printStackTrace();
 		}
 		
@@ -92,13 +94,18 @@ public class BankZRun {
 		switch(choice) {
 		case 1:
 			try {
-				Account account= logic.getAccount(user.getId());
-				System.out.println("Account details:");
-				System.out.println("Account Number: "+account.getAccountNum());
-				System.out.println("Account Holder Name: "+user.getName());
-				System.out.println("Type: "+account.getType());
-				System.out.println("Status: "+account.getStatus());
-				
+				int pageNum=0;
+				int i=1;
+				do {
+					pageNum+=1;
+					for(Account account:logic.getAccounts(user.getId(),pageNum)) {
+						System.out.println("Account details:");
+						System.out.println("Account Number: "+account.getAccountNum());
+						System.out.println("Account Holder Name: "+user.getName());
+						System.out.println("Type: "+AccountType.values()[account.getType()]);
+						System.out.println("Status: "+UserStatus.values()[account.getStatus()]);
+					}i=getInteger("Press 1 to see more AccountDetails");
+				}while(i==1);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}break;
@@ -121,10 +128,11 @@ public class BankZRun {
 			
 		case 3:
 			try {
-				if(user.getStatus().equals("ACTIVE")) {
+				if(user.getStatus()==0) {
 					System.out.println("Amount Deposition...");
 					int amount=getInteger("Enter the Amount: ");
-					logic.deposit(user.getId(), amount);
+					long accountNum=getLong("Account Number: ");
+					logic.deposit(user.getId(),accountNum, amount);
 				}else {
 					throw new BankException("Your id is INACTIVE");
 				}
@@ -136,7 +144,11 @@ public class BankZRun {
 		case 4:
 			try {
 				System.out.println("Mini-statement");
-				List<Transaction> transactionsList= logic.getTransactionDetails(user.getId());
+				int pageNum=0;
+				int i=1;
+				do {
+					pageNum+=1;
+				List<Transaction> transactionsList= logic.getTransactionDetails(user.getId(),pageNum);
 				for(Transaction transaction:transactionsList) {
 					System.out.println("Transaction Type: "+transaction.getTranscationType());
 					System.out.println("Total Amount: "+transaction.getTranscationAmount());
@@ -150,14 +162,15 @@ public class BankZRun {
 					System.out.println("Time: "+transaction.getTimeStamp());
 					System.out.println("Description: "+transaction.getDescription());
 					
-				}
+				}i=getInteger("Press 1 to see more TransactionList");
+				}while(i==1);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}break;
 			
 		case 5:
 			try {
-				if(user.getStatus().equals("ACTIVE")) {
+				if(user.getStatus()==0) {
 					System.out.println("Change the Password!");
 					String newPassword=getString("Enter the new Password:");
 					logic.changePassword(user.getId(), newPassword);
@@ -173,19 +186,20 @@ public class BankZRun {
 		case 6:
 			try {
 				System.out.println("Check the Status:");
-				System.out.println("Your Account is: "+cp.checkStatus(user.getId()));
+				System.out.println("Your Account is: "+logic.checkStatus(user.getId()));
 			} catch (Exception e) {
 				e.printStackTrace();
 			}break;
 			
 		case 7:
 			try {
-				if(user.getStatus().equals("ACTIVE")) {
+				if(user.getStatus()==0) {
 					System.out.println("Direct Transfer to another Account");
 					int amount=getInteger("Enter the Amount: ");
-					long receiverAccountNum=(long)getInteger("Enter the Account Number: ");
+					long accountNum=getLong("Your Account Number: ");
+					long receiverAccountNum=getLong("Enter the reciever Account Number: ");
 					String description=getString("Notes On the Transaction");
-					logic.moneyTransfer(user.getId(), amount,receiverAccountNum, description);
+					logic.moneyTransfer(user.getId(), amount,accountNum,receiverAccountNum, description);
 				}else {
 					throw new BankException("Your id is INACTIVE");
 				}
@@ -261,7 +275,7 @@ public class BankZRun {
 							String address=getString("The Correct Address is: ");
 							logic.modifyInfo(userId, "Address", address);
 						case 5:
-							long contactNum=getLong("The Correct Conatact Number: ");
+							long contactNum=getLong("The Correct Contact Number: ");
 							logic.modifyInfo(userId, "Contact Number", contactNum);
 							break;
 						}
@@ -273,7 +287,7 @@ public class BankZRun {
 					
 				case 3:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							Customer customer=new Customer();
 							customer.setId(getInteger("The Id for the Customer: "));
 							String password=getString("Your Password: ");
@@ -282,8 +296,8 @@ public class BankZRun {
 							customer.setEmail(getString("Email id: "));
 							customer.setDob(Supplement.dateToLong(getString("The Dob(yyyy-mm-dd): ")));
 							customer.setAddress(getString("The Address: "));
-							customer.setType("Customer");
-							customer.setStatus("ACTIVE");
+							customer.setType(2);
+							customer.setStatus(1);
 							customer.setContactNum(getLong("The Contact Num: "));
 							customer.setAadharNum(getLong("Aadhar Number: "));
 							customer.setPanNum(getString("PAN number: "));
@@ -299,7 +313,7 @@ public class BankZRun {
 					
 				case 4:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Details of a Customer");
 							Customer customer=logic.getCustomerPersonalInfo(getInteger("The Id of the Customer: "));
 							System.out.println("Personal Info");
@@ -321,7 +335,7 @@ public class BankZRun {
 					
 				case 5:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Removing Customer: ");
 							logic.removeCustomer(getInteger("The employeeId of the Customer: "));
 						}else {
@@ -334,14 +348,14 @@ public class BankZRun {
 					
 				case 6:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Add an Account");
 							Account account=new Account();
 							account.setAccountNum(getLong("New Account Number: "));
 							account.setCustomerId(getInteger("Customer id: "));
-							account.setType(getString("Type: "));
+							account.setType(getInteger("The Account Type(Current-0/Savings-1): "));
 							account.setBalance(getInteger("Initial Balance: "));
-							account.setStatus("Active");
+							account.setStatus(1);
 							account.setBranchId(getInteger("The branch id: "));
 							logic.addAccount(account);
 						}else {
@@ -354,14 +368,20 @@ public class BankZRun {
 					
 				case 7:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							int employeeId=getInteger("Enter the CustomerId of the Account");
-							Account account= logic.getAccount(employeeId);
+							int pageNum=0;
+							int i=1;
+							do {
+								pageNum+=1;
+							for(Account account: logic.getAccounts(employeeId,pageNum)) {
 							System.out.println("Account details:");
 							System.out.println("Account Number: "+account.getAccountNum());
-							System.out.println("Account Holder Name: "+user.getName());
-							System.out.println("Type: "+account.getType());
-							System.out.println("Status: "+account.getStatus());
+							System.out.println("Balance: "+account.getBalance());
+							System.out.println("Type: "+AccountType.values()[account.getType()]);
+							System.out.println("Status: "+UserStatus.values()[account.getStatus()]);
+							}i=getInteger("Press 1 to see more Accounts");
+							}while(i==1);
 						}else {
 							throw new BankException("Your id is INACTIVE");
 						}
@@ -372,7 +392,7 @@ public class BankZRun {
 					
 				case 8:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							long accountNum=getLong("Enter the Account Number:");
 							logic.removeAccount(accountNum);
 						}else {
@@ -385,7 +405,7 @@ public class BankZRun {
 					
 				case 9:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							long accountNum=(long)getInteger("Enter the Account Number: ");
 							logic.blockAccount(accountNum);
 						}else {
@@ -398,7 +418,7 @@ public class BankZRun {
 					
 				case 10:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Details of your Branch");
 							Branch branch=logic.getBranchDetails(getInteger("The BranchId: "));
 							System.out.println("The Branch Id: "+branch.getBranchId());
@@ -417,10 +437,15 @@ public class BankZRun {
 					
 				case 11:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Transaction Details");
 							int customerId=getInteger("The Customer id: ");
-							List<Transaction> transactionsList=logic.getTransactionDetails(customerId);
+							int pageNum=0;
+							int i=1;
+							do {
+								pageNum+=1;
+								System.out.println(pageNum);
+							List<Transaction> transactionsList=logic.getTransactionDetails(customerId,pageNum);
 							for(Transaction transaction:transactionsList) {
 								System.out.println("Transaction Type: "+transaction.getTranscationType());
 								System.out.println("Total Amount: "+transaction.getTranscationAmount());
@@ -431,11 +456,12 @@ public class BankZRun {
 								}else {
 									System.out.println("Receier Account number: "+transaction.getSecondaryAccNum());
 								}
-								System.out.println("Time: "+transaction.getTimeStamp());
+								System.out.println("Time: "+Supplement.millisToActualTime(transaction.getTimeStamp()));
 								System.out.println("Description: "+transaction.getDescription());
 								
-							}
-						}else {
+							}i=getInteger("Press 1 to see more TransactionList");
+						}while(i==1);
+					}else {
 							throw new BankException("Your id is INACTIVE");
 						}
 						
@@ -445,7 +471,7 @@ public class BankZRun {
 					
 				case 12:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Employee Details...");
 							int employeeId=getInteger("Enter the employee id: ");
 							Employee employee=logic.getEmployeePersonalInfo(employeeId);
@@ -466,7 +492,7 @@ public class BankZRun {
 					
 				case 13:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Change the Password!");
 							logic.changePassword(user.getId(), getString("Enter the new Password:"));
 						}else {
@@ -569,7 +595,7 @@ public class BankZRun {
 					
 				case 3:
 					try {
-						if (user.getStatus().equals("ACTIVE")) {
+						if (user.getStatus()==0) {
 							Customer customer=new Customer();
 							customer.setId(getInteger("The Id for the Customer: "));
 							
@@ -578,8 +604,8 @@ public class BankZRun {
 							customer.setEmail(getString("The EmailId: "));
 							customer.setDob(Supplement.dateToLong(getString("The Dob(yyyy-mm-dd): ")));
 							customer.setAddress(getString("The Address: "));
-							customer.setType("Customer");
-							customer.setStatus("ACTIVE");
+							customer.setType(2);
+							customer.setStatus(0);
 							customer.setContactNum(getLong("The Contact Num: "));
 							customer.setAadharNum(getLong("Aadhar Number: "));
 							customer.setPanNum(getString("PAN number: "));
@@ -595,7 +621,7 @@ public class BankZRun {
 					
 				case 4:
 					try {
-						if (user.getStatus().equals("ACTIVE")) {
+						if (user.getStatus()==0) {
 							System.out.println("Details of a Customer");
 							Customer customer=logic.getCustomerPersonalInfo(getInteger("The Id of the Customer: "));
 							System.out.println("Personal Info");
@@ -617,7 +643,7 @@ public class BankZRun {
 					
 				case 5:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Removing Customer: ");
 							logic.removeCustomer(getInteger("The employeeId of the Customer: "));
 						}else {
@@ -630,7 +656,7 @@ public class BankZRun {
 					
 				case 6:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Add an Employee..");
 							Employee employee=new Employee();
 							employee.setId(getInteger("The Employee id: "));
@@ -640,8 +666,8 @@ public class BankZRun {
 							String dob=getString("The Dob(yyyy-mm-dd): ");
 							employee.setDob(Supplement.dateToLong(dob));
 							employee.setAddress(getString("Address: "));
-							employee.setType("Employee");
-							employee.setStatus("ACTIVE");
+							employee.setType(1);
+							employee.setStatus(0);
 							employee.setContactNum(getLong("Contact Number: "));
 							employee.setDepartment(getString("Department: "));
 							employee.setBranch(getString("Branch: "));
@@ -656,7 +682,7 @@ public class BankZRun {
 			
 				case 7:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Employee Details...");
 							int employeeId=getInteger("Enter the employee id: ");
 							Employee employee=logic.getEmployeePersonalInfo(employeeId);
@@ -677,7 +703,7 @@ public class BankZRun {
 					
 				case 8:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Removing Employee: ");
 							logic.removeEmployee(getInteger("The Employee id: "));
 						}else {
@@ -690,14 +716,14 @@ public class BankZRun {
 					
 				case 9:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Add an Account");
 							Account account=new Account();
 							account.setAccountNum(getLong("New Account Number: "));
 							account.setCustomerId(getInteger("Customer id: "));
-							account.setType(getString("Type: "));
+							account.setType(getInteger("The Account Type(Current-0/Savings-1): "));
 							account.setBalance(getInteger("Initial Balance: "));
-							account.setStatus("Active");
+							account.setStatus(1);
 							account.setBranchId(getInteger("The branch id: "));
 							logic.addAccount(account);
 						}else {
@@ -710,15 +736,20 @@ public class BankZRun {
 					
 				case 10:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("View Account Info");
 							int employeeId=getInteger("Enter the CustomerId of the Account");
-							Account account= logic.getAccount(employeeId);
-							System.out.println("Account details:");
-							System.out.println("Account Number: "+account.getAccountNum());
-							System.out.println("Account Holder Name: "+user.getName());
-							System.out.println("Type: "+account.getType());
-							System.out.println("Status: "+account.getStatus());
+							int pageNum=0;
+							int i=1;
+							do {
+								pageNum+=1;
+							for(Account account: logic.getAccounts(employeeId,pageNum)) {
+								System.out.println("Account details:");
+								System.out.println("Account Number: "+account.getAccountNum());
+								System.out.println("Type: "+AccountType.values()[account.getType()]);
+								System.out.println("Status: "+UserStatus.values()[account.getStatus()]);
+						}i=getInteger("Press 1 to see more Accounts");
+							}while(i==1);
 						}else {
 							throw new BankException("Your id is INACTIVE");
 						}
@@ -729,7 +760,7 @@ public class BankZRun {
 					
 				case 11:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							long accountNum=(long)getInteger("Enter the Account Number:");
 							logic.removeAccount(accountNum);
 						}else {
@@ -743,7 +774,7 @@ public class BankZRun {
 				case 12:
 					
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							long accountNum=(long)getInteger("Enter the Account Number: ");
 							logic.blockAccount(accountNum);
 						}else {
@@ -756,7 +787,7 @@ public class BankZRun {
 					
 				case 13:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Details of your Branch");
 							Branch branch=logic.getBranchDetails(getInteger("The BranchId: "));
 							System.out.println("The Branch Id: "+branch.getBranchId());
@@ -775,10 +806,14 @@ public class BankZRun {
 					
 				case 14:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Transaction Details");
 							int customerId=getInteger("The Customer id: ");
-							List<Transaction> transactionsList=logic.getTransactionDetails(customerId);
+							int pageNum=0;
+							int i=1;
+							do {
+								pageNum+=1;
+							List<Transaction> transactionsList=logic.getTransactionDetails(customerId,pageNum);
 							for(Transaction transaction:transactionsList) {
 								System.out.println("Transaction Type: "+transaction.getTranscationType());
 								System.out.println("Total Amount: "+transaction.getTranscationAmount());
@@ -789,10 +824,11 @@ public class BankZRun {
 								}else {
 									System.out.println("Receier Account number: "+transaction.getSecondaryAccNum());
 								}
-								System.out.println("Time: "+transaction.getTimeStamp());
+								System.out.println("Time: "+Supplement.millisToActualTime(transaction.getTimeStamp()));
 								System.out.println("Description: "+transaction.getDescription());
 								
-							}
+							}i=getInteger("Press 1 to see more TransactionList");
+						}while(i==1);
 						}else {
 							throw new BankException("Your id is INACTIVE");
 						}
@@ -803,7 +839,7 @@ public class BankZRun {
 					
 				case 15:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Employee Details...");
 							int employeeId=getInteger("Enter the employee id: ");
 							Employee employee=logic.getEmployeePersonalInfo(employeeId);
@@ -824,7 +860,7 @@ public class BankZRun {
 					
 				case 16:
 					try {
-						if(user.getStatus().equals("ACTIVE")) {
+						if(user.getStatus()==0) {
 							System.out.println("Change the Password!");
 							logic.changePassword(user.getId(), getString("Enter the new Password:"));
 						}else {
@@ -853,9 +889,8 @@ public class BankZRun {
 	
 	
 	private static User login() throws NoSuchAlgorithmException, InvalidInputException, SQLException {
-		int userId=getInteger("Enter the UserId:");
-	
-		System.out.println("Enter your Password:");
+		int userId=getInteger("UserId:");
+		System.out.println("Password:");
 		System.out.print("\033[8m");
 		String password=scan.nextLine();
 		System.out.println("\033[0m");
@@ -881,6 +916,4 @@ public class BankZRun {
 		scan.nextLine();
 		return returnLong;
 	}
-	
-	
 }

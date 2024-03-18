@@ -7,7 +7,7 @@ public class Transaction {
 	private String transcationType;
 	private int transcationAmount;
 	private int balance;
-	private LocalDateTime timeStamp;
+	private long timeStamp;
 	private int customerId;
 	private long primaryAccNum;
 	private long secondaryAccNum;
@@ -36,10 +36,10 @@ public class Transaction {
 	public void setBalance(int balance) {
 		this.balance = balance;
 	}
-	public LocalDateTime getTimeStamp() {
+	public long getTimeStamp() {
 		return timeStamp;
 	}
-	public void setTimeStamp(LocalDateTime timeStamp) {
+	public void setTimeStamp(long timeStamp) {
 		this.timeStamp = timeStamp;
 	}
 	public int getCustomerId() {

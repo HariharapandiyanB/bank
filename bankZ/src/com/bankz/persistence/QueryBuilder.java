@@ -11,14 +11,27 @@ public class QueryBuilder {
 		select(query, tablename);
 		if (tablename.equals("Customer")) {
 			query.append("  JOIN User ON "+tablename+".CUSTOMER_ID=User.USER_ID ");
+			where(query, keyMap);
 		}else if (tablename.equals("Employee")) {
 			query.append("  JOIN User ON "+tablename+".EMPLOYEE_ID=User.USER_ID ");
-		}else  {
-			query.append(" ");
+			where(query, keyMap);
+		}else if(tablename.equals("Transaction") || tablename.equals("Accounts")) {
+			where(query, keyMap);
+			query.deleteCharAt(query.length()-1);
+			query.append(" LIMIT  ? OFFSET ? ;");
 		}
+		
+		return query.toString();
+	}
+	
+	public String fetchSingleRecordQuery(String tableName,Map<String, Object>keyMap) {
+		StringBuilder query=new StringBuilder();
+		select(query, tableName);
 		where(query, keyMap);
 		return query.toString();
 	}
+	
+	
 	
 	public String fetchSpecificValuesQuery(String tableName,Map<String, Object>keyMap,List<String> columnList) {
 		StringBuilder query=new StringBuilder();

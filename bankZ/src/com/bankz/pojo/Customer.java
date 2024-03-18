@@ -1,6 +1,6 @@
 package com.bankz.pojo;
 
-import java.time.LocalDate;
+
 
 
 public class Customer extends User{

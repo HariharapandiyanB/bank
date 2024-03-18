@@ -2,6 +2,9 @@ package com.bankz.pojo;
 
 import java.time.LocalDate;
 
+import com.bankz.enums.UserStatus;
+
+
 public class User {
 	private int id;
 	private String password;
@@ -10,8 +13,8 @@ public class User {
 	private long contactNum;
 	private long dob;
 	private String address;
-	private String status;
-	private String type;
+	private int status;
+	private int type;
 	public int getId() {
 		return id;
 	}
@@ -48,16 +51,16 @@ public class User {
 	public void setAddress(String address) {
 		this.address = address;
 	}
-	public String getStatus() {
+	public int getStatus() {
 		return status;
 	}
-	public void setStatus(String status) {
+	public void setStatus(int status) {
 		this.status = status;
 	}
-	public String getType() {
+	public int getType() {
 		return type;
 	}
-	public void setType(String type) {
+	public void setType(int type) {
 		this.type = type;
 	}
 	public long getContactNum() {

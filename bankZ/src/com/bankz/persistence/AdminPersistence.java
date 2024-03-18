@@ -17,7 +17,7 @@ public class AdminPersistence extends EmployeePersistence{
 	
 	public void removeEmployee(int userId) throws SQLException,InvalidInputException{
 		Map<String, Object>keyMap=new HashMap<String, Object>();
-		keyMap.put("USER_ID", userId);
+		keyMap.put(dbTasks.fetchColumnList("User").get(0), userId);
 		dbTasks.deleteRecords("User", keyMap);
 	}
 }

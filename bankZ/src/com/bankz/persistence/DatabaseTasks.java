@@ -15,7 +15,6 @@ import java.util.List;
 import java.util.Map;
 
 
-
 import com.bankz.pojo.Account;
 import com.bankz.pojo.Branch;
 import com.bankz.pojo.Customer;
@@ -78,7 +77,7 @@ public class DatabaseTasks {
 			System.out.println(query);
 			try(PreparedStatement statement=connection.prepareStatement(query);
 					ResultSet rs= statement.executeQuery();){
-				Map<Integer, Object> resultMap=new HashMap<Integer, Object>();
+				Map<Integer, Object> resultMap=new HashMap<>();
 				switch(tableName) {
 				case "User":
 					resultMap=fetchUserData(rs);
@@ -101,20 +100,27 @@ public class DatabaseTasks {
 	}
 	}
 	
-	public  Map<Integer, List<Object>>fetchMultipleRecords(String tableName,Map<String, Object>keyMap) 
+	public  Map<Integer, List<Object>>fetchMultipleRecords(String tableName,Map<String, Object>keyMap,int pageNum,int limit) 
 																				throws SQLException,InvalidInputException{
 		UtilityTasks.checkNull(tableName);
 		UtilityTasks.checkNull(keyMap);
 		try(Connection connection=DriverManager.getConnection(url,username,password)){
 			String query=queryBuilder.fetchQuery(tableName, keyMap);
-			try(PreparedStatement statement=connection.prepareStatement(query.toString());
-					ResultSet rs= statement.executeQuery();){
+			
+			try(PreparedStatement statement=connection.prepareStatement(query)){
+					int offset=(pageNum-1)*limit;
+					statement.setInt(1, limit);
+					statement.setInt(2,offset);
+					
+					ResultSet rs= statement.executeQuery();
 				Map<Integer, List<Object>> resultMap=new HashMap<Integer, List<Object>>();
 				switch(tableName) {
 				case "Transaction":
 					  resultMap=fetchTransactionData(rs);
+					  break;
 				case "Accounts":
 					resultMap=fetchAccountData(rs);
+					break;
 				}return resultMap;
 		}
 		}
@@ -152,6 +158,19 @@ public class DatabaseTasks {
 		}
 	}
 	
+	public Account fetchSingleAccount(String tableName,Map<String, Object> keyMap) throws SQLException,InvalidInputException{
+		UtilityTasks.checkNull(tableName);
+		UtilityTasks.checkNull(keyMap);
+		try(Connection connection=DriverManager.getConnection(url,username,password)){
+			String query=queryBuilder.fetchSingleRecordQuery(tableName, keyMap);
+			try(PreparedStatement statement=connection.prepareStatement(query);
+					ResultSet rs=statement.executeQuery()){
+				return fetchSingleAccount(fetchDataFromResultSet(rs).get(0));
+			}
+			
+		} 
+	}
+	
 	public void deleteRecords(String tableName,Map<String, Object> conditionMap) throws SQLException,InvalidInputException {
 		UtilityTasks.checkNull(tableName);
 		UtilityTasks.checkNull(conditionMap);
@@ -173,7 +192,7 @@ public class DatabaseTasks {
 				fields.append(field + ",");
 			}
 			String fieldString=fields.toString().substring(0, fields.length()-1);
-			System.out.println(fieldString);
+			
 			StringBuilder recordValues = new StringBuilder();
 			for (Object recordValue : valuesList) {
 				if (recordValue instanceof String) {
@@ -229,8 +248,8 @@ public class DatabaseTasks {
 			user.setContactNum((long) recordMap.get("CONTACT_NUM"));
 			user.setDob((long) recordMap.get("DOB"));
 			user.setAddress((String) recordMap.get("ADDRESS"));
-			user.setType((String) recordMap.get("USER_TYPE"));
-			user.setStatus((String) recordMap.get("STATUS"));
+			user.setType((int) recordMap.get("USER_TYPE"));
+			user.setStatus((int) recordMap.get("STATUS"));
 			userMap.put(user.getId(), user);
 		}
 		return userMap;
@@ -250,8 +269,8 @@ public class DatabaseTasks {
 			employee.setContactNum((long) recordMap.get("CONTACT_NUM"));
 			employee.setDob((long) recordMap.get("DOB"));
 			employee.setAddress((String) recordMap.get("ADDRESS"));
-			employee.setType((String) recordMap.get("USER_TYPE"));
-			employee.setStatus((String) recordMap.get("STATUS"));
+			employee.setType((int) recordMap.get("USER_TYPE"));
+			employee.setStatus((int) recordMap.get("STATUS"));
 			employee.setDepartment((String) recordMap.get("DEPARTMENT"));
 			employee.setBranch((String) recordMap.get("BRANCH"));
 			employeeMap.put(employee.getId(), employee);
@@ -274,8 +293,8 @@ public class DatabaseTasks {
 			customer.setContactNum((long) recordMap.get("CONTACT_NUM"));
 			customer.setDob((long) recordMap.get("DOB"));
 			customer.setAddress((String) recordMap.get("ADDRESS"));
-			customer.setType((String) recordMap.get("USER_TYPE"));
-			customer.setStatus((String) recordMap.get("STATUS"));
+			customer.setType((int) recordMap.get("USER_TYPE"));
+			customer.setStatus((int) recordMap.get("STATUS"));
 			customer.setAadharNum((long) recordMap.get("AADHAR_NUM"));
 			customer.setPanNum((String) recordMap.get("PAN_NUM"));
 			customerMap.put(customer.getId(), customer);
@@ -287,7 +306,7 @@ public class DatabaseTasks {
 	private  Map<Integer, List<Object>> fetchTransactionData(ResultSet rs) throws SQLException {
 
 		List<Map<String, Object>> list = fetchDataFromResultSet(rs);
-
+		
 		List<Object> transactionList = new ArrayList<>();
 		Map<Integer, List<Object>> transactionMap = new HashMap<Integer, List<Object>>();
 		for (Map<String, Object> recordMap : list) {
@@ -297,7 +316,7 @@ public class DatabaseTasks {
 			transaction.setTranscationType((String) recordMap.get("TYPE"));
 			transaction.setTranscationAmount((int) recordMap.get("AMOUNT"));
 			transaction.setBalance((int) recordMap.get("BALANCE"));
-			transaction.setTimeStamp((LocalDateTime) recordMap.get("TIME"));
+			transaction.setTimeStamp((long) recordMap.get("TIME"));
 			transaction.setPrimaryAccNum((long) recordMap.get("PRIMARY_ACCOUNT_NUMBER"));
 			transaction.setSecondaryAccNum((long) recordMap.get("SECONDARY_ACCOUNT_NUMBER"));
 			transaction.setDescription((String) recordMap.get("DESCRIPTION"));
@@ -312,6 +331,7 @@ public class DatabaseTasks {
 				transactionMap.put(num, transactionList);
 			}
 		}
+		
 		return transactionMap;
 	}
 
@@ -325,9 +345,9 @@ public class DatabaseTasks {
 			Account account = new Account();
 			account.setAccountNum((long) recordMap.get("ACCOUNT_NUMBER"));
 			account.setCustomerId((int) recordMap.get("CUSTOMER_ID"));
-			account.setType((String) recordMap.get("TYPE"));
+			account.setType((int) recordMap.get("TYPE"));
 			account.setBalance((int) recordMap.get("BALANCE"));
-			account.setStatus((String) recordMap.get("STATUS"));
+			account.setStatus((int) recordMap.get("STATUS"));
 			account.setBranchId((int) recordMap.get("BRANCH_ID"));
 			
 			int num=account.getCustomerId();
@@ -342,6 +362,17 @@ public class DatabaseTasks {
 			
 		}
 		return accountMap;
+	}
+	
+	private Account fetchSingleAccount(Map<String, Object> recordMap) throws SQLException{
+		Account account = new Account();
+		account.setAccountNum((long) recordMap.get("ACCOUNT_NUMBER"));
+		account.setCustomerId((int) recordMap.get("CUSTOMER_ID"));
+		account.setType((int) recordMap.get("TYPE"));
+		account.setBalance((int) recordMap.get("BALANCE"));
+		account.setStatus((int) recordMap.get("STATUS"));
+		account.setBranchId((int) recordMap.get("BRANCH_ID"));
+		return account;
 	}
 
 	private Map<Integer, Object> fetchBranchData(ResultSet rs) throws SQLException {

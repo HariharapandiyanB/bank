@@ -17,7 +17,7 @@ public class EmployeePersistence extends UserPersistence{
 		QueryBuilder queryBuilder=new QueryBuilder();
 		
 		public Employee getPersonalInfo(int userId) throws SQLException, InvalidInputException{
-			Map<String, Object> keyMap=getMap("USER_ID", userId);
+			Map<String, Object> keyMap=getMap(dbTasks.fetchColumnList("User").get(0), userId);
 			Map<Integer, Object> resultMap=dbTasks.fetchRecords("Employee", keyMap);
 			return (Employee)resultMap.get(userId);
 		}
@@ -30,13 +30,13 @@ public class EmployeePersistence extends UserPersistence{
 		}
 		
 		public void removeAccount(long accountNum) throws SQLException,InvalidInputException{
-			Map<String, Object> keyMap=getMap("ACCOUNT_NUMBER", accountNum);
+			Map<String, Object> keyMap=getMap(dbTasks.fetchColumnList("Accounts").get(0), accountNum);
 			dbTasks.deleteRecords("Accounts", keyMap);
 		}
 		
 		public void blockAccount(long accountNum) throws SQLException,InvalidInputException{
-			Map<String, Object> keyMap=getMap("ACCOUNT_NUMBER", accountNum);
-			Map<String, Object> updateMap=getMap("STATUS", "INACTIVE");
+			Map<String, Object> keyMap=getMap(dbTasks.fetchColumnList("Accounts").get(0), accountNum);
+			Map<String, Object> updateMap=getMap(dbTasks.fetchColumnList("Accounts").get(4), 1);
 			dbTasks.modifyRecord("Accounts", keyMap, updateMap);
 		}
 		
@@ -53,12 +53,12 @@ public class EmployeePersistence extends UserPersistence{
 		}
 		
 		public void removeCustomer(int userId) throws SQLException,InvalidInputException {
-			Map<String, Object> keyMap=getMap("CUSTOMER_ID", userId);
+			Map<String, Object> keyMap=getMap(dbTasks.fetchColumnList("Customer").get(0), userId);
 			dbTasks.deleteRecords("Customer", keyMap);
 		}
 		
 		public Branch getBranch(int branchId)throws SQLException,InvalidInputException{
-			Map<String,Object>keyMap= getMap("BRANCH_ID", branchId);
+			Map<String,Object>keyMap= getMap(dbTasks.fetchColumnList("Branch").get(0), branchId);
 			return (Branch)dbTasks.fetchRecords("Branch", keyMap).get(branchId);
 		}
 		
@@ -70,15 +70,15 @@ public class EmployeePersistence extends UserPersistence{
 		
 		public void addAccountCount(Branch branch)throws SQLException,InvalidInputException{
 			UtilityTasks.checkNull(branch);
-			Map<String, Object>keyMap=getMap("BRANCH_ID", branch.getBranchId());
-			Map<String, Object>updateMap=getMap("NUM_OF_ACTIVE_CUSTOMERS", branch.getNumOfActiveCustomers());
+			Map<String, Object>keyMap=getMap(dbTasks.fetchColumnList("Branch").get(0), branch.getBranchId());
+			Map<String, Object>updateMap=getMap(dbTasks.fetchColumnList("Branch").get(5), branch.getNumOfActiveCustomers());
 			dbTasks.modifyRecord("Branch", keyMap, updateMap);
 		}
 		
 		public void addEmployeeCount(Branch branch)throws SQLException,InvalidInputException{
 			UtilityTasks.checkNull(branch);
-			Map<String, Object>keyMap=getMap("BRANCH_ID", branch.getBranchId());
-			Map<String, Object>updateMap=getMap("NUM_OF_ACTIVE_EMPLOYEES", branch.getNumOfActiveEmployees());
+			Map<String, Object>keyMap=getMap(dbTasks.fetchColumnList("Branch").get(0), branch.getBranchId());
+			Map<String, Object>updateMap=getMap(dbTasks.fetchColumnList("Branch").get(4), branch.getNumOfActiveEmployees());
 			dbTasks.modifyRecord("Branch", keyMap, updateMap);
 		}
 		

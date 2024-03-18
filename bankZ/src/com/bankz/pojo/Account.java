@@ -1,11 +1,14 @@
 package com.bankz.pojo;
 
+
+
+
 public class Account {
 	private long accountNum;
 	private int customerId;
-	private String type;
+	private int type;
 	private int balance;
-	private String status;
+	private int status;
 	private int branchId;
 	public long getAccountNum() {
 		return accountNum;
@@ -19,10 +22,10 @@ public class Account {
 	public void setCustomerId(int customerId) {
 		this.customerId = customerId;
 	}
-	public String getType() {
+	public int getType() {
 		return type;
 	}
-	public void setType(String type) {
+	public void setType(int type) {
 		this.type = type;
 	}
 	public int getBalance() {
@@ -31,10 +34,10 @@ public class Account {
 	public void setBalance(int balance) {
 		this.balance = balance;
 	}
-	public String getStatus() {
+	public int getStatus() {
 		return status;
 	}
-	public void setStatus(String status) {
+	public void setStatus(int status) {
 		this.status = status;
 	}
 	public int getBranchId() {
